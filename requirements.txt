@@ -1,0 +1,7 @@
+semantic-kernel
+openai
+pyautogen
+fastapi
+uvicorn
+scikit-learn
+python-multipart
