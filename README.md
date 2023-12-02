@@ -1,18 +1,25 @@
-# SustAInSim
-![output-onlinepngtools](https://github.com/dmavani25/MinervAI/assets/107078090/8413ebde-629f-4307-bfba-ca26f8a41b7c)
+# SustAInSim: Diverse Stakeholder Representation through AI
 ![demo](demo.png)
 
-Empowering teachers through interactions with realistic simulated classrooms. MinervAI combines AI agent students with various backgrounds and proficiencies to help educators better understand students and the ways in which they think.
+SustAInSim is a pioneering platform designed to revolutionize discussions around campus sustainability projects. By leveraging sophisticated AI agents, it represents a broad spectrum of stakeholders, including students from various backgrounds, professors, administrators, and environmental entities. This tool aims to cultivate a more inclusive, informed, and sustainability-focused dialogue across campus.
 
-In this beta version of MinervAI,  language models serve as AI agents in the classroom: each is initialized with a distinct personality (ex: “confident”), background (ex: “liberal arts student with math training”) and weight factor (which varies the scale of the 2 prior features’ impact) which influences their understanding of topics.
+<h2>Key Features</h2>
 
-Users can upload a “lecture file” containing important information. The text is interpreted by the professor agent, which lectures the students, who then internalize the new data and generate new questions depending on their background. The professor then provides sample answers specific to each student’s needs and knowledge gaps.
+1. **AI-Powered Stakeholder Representation:** Simulates diverse campus stakeholders including students, faculty, and environmental factors using AI agents.
 
-The final output of this tool is a summary file listing Q+A conversations and summary statistics regarding question types (commonly asked questions, question frequency, recurring “keyword” concepts and more).
+2. **Interactive Sustainability Discussions:** Facilitates dynamic dialogues on sustainability issues, integrating real-time environmental data.
+
+3. **Scenario Exploration:** Users can create and explore various sustainability scenarios, assessing potential outcomes.
+
+4. **Summarizer Agent:** An AI summarizer provides concise overviews of discussions, highlighting key points and perspectives.
+
+5. **Decision-Making and Feedback:** Users input decisions on sustainability projects, which are then analyzed by the AI for sentiment feedback.
+
+6. **Sentiment Analysis:** The platform assesses AI stakeholder responses to user decisions, offering insights into potential community reactions.
 
 <h2>Requirements for running</h2>
 
-The required packages needed to run MinervAI are included in the ***requirements.txt*** file.
+The required packages needed to run SustAInSim are included in the ***requirements.txt*** file.
 
 The semantic kernel package can be installed using the command `python3 -m pip install semantic-kernel`.
 
