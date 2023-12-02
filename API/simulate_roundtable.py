@@ -137,35 +137,26 @@ async def simulate_roundtable_discussion(agents, general_agent):
     for agent in agents:
         agent.upload_notes(f"""Here are some key resources for the discussion at hand: {content}""")  # Upload content
 
-    discussion_notes = []  # Initialize an array to store discussion notes
+    prev_discussion_notes = []  # Initialize an array to store discussion notes
+    discussion_notes_complete = []
     for agent in agents:
-        if(discussion_notes==[]):
-            discussion_notes=[content]
-        response = await agent.discuss(str(discussion_notes))
-        discussion_notes=[]
-        print(response.result)
-        discussion_notes.append({"agent": agent.id, "response": response.result})
+        if(prev_discussion_notes==[]):
+            prev_discussion_notes=[content]
+        response = await agent.discuss(str(prev_discussion_notes))
+        prev_discussion_notes=[]
+        prev_discussion_notes.append({"agent": agent.id, "response": response.result})
+        discussion_notes_complete.append({"agent": agent.id, "response": response.result})
     
     # General Agent provides a summary
-    summary = await general_agent.generate_summary(discussion_notes)
-    discussion_notes.append({"agent": "General Summarizer", "comment": "Summary of the discussion so far is:", "response": summary.result})
+    summary = await general_agent.generate_summary(discussion_notes_complete)
+    discussion_notes_complete.append({"agent": "General Summarizer", "comment": "Summary of the discussion so far is:", "response": summary.result})
 
-    return discussion_notes  # Return the discussion notes
+    print(discussion_notes_complete)
+    return discussion_notes_complete  # Return the discussion notes
 
 # Coroutine to simulate a classroom-style discussion environment
-async def simulate_room():
+async def simulate_room(agents, general_agent):
     start_time = time.time()  # Record the start time
-
-    # Instantiate Agents
-    agents = [AdminDiscussionAgent("Office of Financial Planning and Operating Budget"),
-              StudentDiscussionAgent("Middle-Class", "Liberal", "English and Political Science"),
-              StudentDiscussionAgent("High-Income", "Conservative", "Economics, Math, CS, and Statistics"),
-              StudentDiscussionAgent("Low-Income", "Conservative", "Environmental Studies and Law"),
-              ProfessorDiscussionAgent("CS an Math", "Tenured"),
-              ProfessorDiscussionAgent("LJST", "Lecturer"),
-              EnvironmentalistDiscussionAgent()]
-
-    general_agent = GeneralAgent()
 
     # Simulate the roundtable discussion
     roundtable_discussion_notes = await simulate_roundtable_discussion(agents, general_agent)
@@ -177,16 +168,34 @@ async def simulate_room():
 
     return roundtable_discussion_notes  # Return the discussion notes
 
-async def polling(wes_input, roundtable_discussion_notes):
+def polling(wes_input, roundtable_discussion_notes, agents, general_agent):
     decision = wes_input
-    sentiment = TextBlob(roundtable_discussion_notes).sentiment
+    thoughts_on_decision = ""
+    for agent in agents:
+        print(roundtable_discussion_notes[-1]["response"])
+        kernel = sk.Kernel()  # Initialize a semantic kernel
+        kernel.add_chat_service("chat-gpt", OpenAIChatCompletion("gpt-3.5-turbo", api_key, org_id))  # Add OpenAI chat service to the kernel
+        response = kernel.create_semantic_function(f"""What do you think about the decision: {decision} based on round table discussion summary so far as follows {roundtable_discussion_notes[-1]["response"]}""")()
+        thoughts_on_decision += response.result
+    
+    sentiment = TextBlob(thoughts_on_decision).sentiment
     return {'polarity': sentiment.polarity,
             'subjectivity': sentiment.subjectivity}
 
 # Execute the main function if this script is run as the main module
 if __name__ == "__main__":
     import asyncio  # Import asyncio for asynchronous execution
-    disc_notes = asyncio.run(simulate_room())  # Run the simulate_classroom coroutine
+    # Instantiate Agents
+    agents = [AdminDiscussionAgent("Office of Financial Planning and Operating Budget"),
+              StudentDiscussionAgent("Middle-Class", "Liberal", "English and Political Science"),
+              StudentDiscussionAgent("High-Income", "Conservative", "Economics, Math, CS, and Statistics"),
+              StudentDiscussionAgent("Low-Income", "Conservative", "Environmental Studies and Law"),
+              ProfessorDiscussionAgent("CS an Math", "Tenured"),
+              ProfessorDiscussionAgent("LJST", "Lecturer"),
+              EnvironmentalistDiscussionAgent()]
+
+    general_agent = GeneralAgent()
+    disc_notes = asyncio.run(simulate_room(agents, general_agent))  # Run the simulate_classroom coroutine
     wes_input = "I decide to replace the plastic cups in Val in 3 months of time."
-    sentiment = polling(wes_input, disc_notes)
+    sentiment = polling(wes_input, disc_notes, agents, general_agent)
     print(sentiment)
