@@ -12,6 +12,27 @@ from sklearn.metrics.pairwise import cosine_similarity  # Import cosine_similari
 import random  # Import random module for generating random numbers
 import time  # Import time module for time-related tasks
 import asyncio
+import pdfplumber
+import xlrd
+from textblob import TextBlob
+import os
+import asyncio
+
+# Data Ingestion: Function to read data from PDF and Excel files
+def load(file_paths):
+    data = ""
+    for file_path in file_paths:
+        temp_data = f"{file_path} has the following data"
+        if file_path.endswith('.pdf'):
+            with pdfplumber.open(file_path) as pdf:
+                data.append(temp_data + '\n'.join([page.extract_text() for page in pdf.pages]))
+        elif file_path.endswith('.xls') or file_path.endswith('.xlsx'):
+            workbook = xlrd.open_workbook(file_path)
+            sheet = workbook.sheet_by_index(0)
+            data.append(temp_data + '\n'.join([' '.join(map(str, sheet.row_values(row))) for row in range(sheet.nrows)]))
+        else:
+            data.append(temp_data + "This Data Cannot be parsed")
+    return data
 
 # Prepare OpenAI service using credentials stored in the `.env` file
 api_key, org_id = sk.openai_settings_from_dot_env()  # Retrieve API key and organization ID from a .env file
@@ -21,17 +42,6 @@ def calculate_cosine_similarity(text1, text2):
     vectorizer = TfidfVectorizer()  # Initialize a TfidfVectorizer
     tfidf_matrix = vectorizer.fit_transform([text1, text2])  # Transform the texts into TF-IDF matrix
     return cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]  # Return the cosine similarity score
-
-# Define a function to load text lines from a file
-def load(filename):
-    lines = []  # Initialize an empty list to store lines
-    with open(filename, 'r') as file:  # Open the file in read mode
-        while True:
-            line = file.readline()  # Read a line from the file
-            if not line:  # Break the loop if no more lines
-                break
-            lines.append(line.strip())  # Add the line to the list after stripping whitespace
-    return '\n'.join(lines)  # Return the lines joined by newlines
 
 # Define a class to represent an Admin Agent that is part of the discussion
 class AdminDiscussionAgent:
@@ -49,6 +59,40 @@ class AdminDiscussionAgent:
     async def discuss(self, comment):
         # Create and execute a semantic function to provide an answer
         return self.kernel.create_semantic_function(f"""You are the Director of {self.department} Provide your opinion or take to the following comment received following the summary of {self.notes}: {comment}? Answer concisely.""", temperature=0.8)()
+
+# Define a class to represent an Admin Agent that is part of the discussion
+class ProfessorDiscussionAgent:
+    def __init__(self, department, track):
+        self.notes = None  # Initialize notes attribute to None
+        self.kernel = sk.Kernel()  # Initialize a semantic kernel
+        self.kernel.add_chat_service("chat-gpt", OpenAIChatCompletion("gpt-3.5-turbo", api_key, org_id))  # Add OpenAI chat service to the kernel
+        self.department = department
+        self.track = track
+        
+    # Method to upload notes
+    def upload_notes(self, notes):
+        self.notes = notes  # Set the notes attribute
+
+    # Async method to answer a question
+    async def discuss(self, comment):
+        # Create and execute a semantic function to provide an answer
+        return self.kernel.create_semantic_function(f"""You are the professor of {self.department} on track of {self.track}. Provide your opinion or take to the following comment received following the summary of {self.notes}: {comment}? Answer concisely.""", temperature=0.8)()
+
+# Define a class to represent an Admin Agent that is part of the discussion
+class EnvironmentalistDiscussionAgent:
+    def __init__(self):
+        self.notes = None  # Initialize notes attribute to None
+        self.kernel = sk.Kernel()  # Initialize a semantic kernel
+        self.kernel.add_chat_service("chat-gpt", OpenAIChatCompletion("gpt-3.5-turbo", api_key, org_id))  # Add OpenAI chat service to the kernel
+        
+    # Method to upload notes
+    def upload_notes(self, notes):
+        self.notes = notes  # Set the notes attribute
+
+    # Async method to answer a question
+    async def discuss(self, comment):
+        # Create and execute a semantic function to provide an answer
+        return self.kernel.create_semantic_function(f"""You are an Environmentalist with legal background, and nature's best interests are your best interests. Represent Mountains, lakes, and forests nearby as appropriate to the ongoing discussion. Provide your opinion or take to the following comment received following the summary of {self.notes}: {comment}? Answer concisely.""", temperature=0.8)()
 
 # Define a class to represent a Student Agent
 class StudentDiscussionAgent:
@@ -76,117 +120,53 @@ class GeneralAgent:
         self.kernel.add_chat_service("chat-gpt", OpenAIChatCompletion("gpt-4-1106-preview", api_key, org_id))  # Add OpenAI chat service to the kernel
     
     # Async method to generate a summary of discussion
-    async def generate_summary(self, qa_map):
+    async def generate_summary(self, discussion_notes):
         # Create and execute a semantic function to generate a summary
-        return self.kernel.create_semantic_function(f"""Give a succinct summary of overall and student wise analysis of types, kinds and frequencies of questions asked as per the data in the following map containing questions, answers, and students who asked the questions: {qa_map}.""")()
+        return self.kernel.create_semantic_function(f"""Give a succinct summary of overall discussion so far at the round table and how does each others' contributions shaped it: {discussion_notes}.""")()
 
-# Define a coroutine to simulate a lecture session
-async def simulate_lecture(lecture, lecture_index, professor, students):
-    professor.upload_lecture_notes(f"""Here are some key points and concepts from lecture {lecture_index + 1} in LateX: {lecture}""")  # Upload lecture notes
+# Coroutine to simulate a roundtable discussion session
+async def simulate_roundtable_discussion(agents, general_agent):
+    content = load(["./sample.pdf","./sample.xls"])
+    for agent in agents:
+        agent.upload_notes(f"""Here are some key resources for the discussion at hand: {content}""")  # Upload content
 
-    # Simulate classroom interaction
-    lecture_content = await professor.give_lecture()  # Get the lecture content from the professor
-    question_answer_array = []  # Initialize an array to store Q&A pairs
-
-    # Generate questions from all students concurrently
-    coroutines = [student.generate_questions(lecture_content.result) for student in students]
-    all_questions = await asyncio.gather(*coroutines)  # Gather all questions
-
-    prof_coroutines = []  # Initialize an array for professor's responses
-
-    # Process each question and get responses
-    for student_index, question in enumerate(all_questions):
-        print(question.result)
-        if question.result == "-1":  # Check if student doesn't want to ask a question
-            continue
-
-        should_ask = True  # Flag to determine if the question should be asked
-        for index, [old_question, old_answer, associated_students_list] in enumerate(question_answer_array):
-            similarity_threshold = 0.75  # Define a threshold for similarity
-            if calculate_cosine_similarity(old_question, question.result) > similarity_threshold:
-                should_ask = False  # Set flag to false if similar question already asked
-                question_answer_array[index][2].append(student_index)  # Append student index to existing question
-                break
-
-        if not should_ask:  # Skip if question should not be asked
-            continue
-
-        # Add the professor's response coroutine for the new question
-        prof_coroutines.append(professor.answer_question(question.result))
-        question_answer_array.append([question.result, "PLACEHOLDER", [student_index]])  # Add new question to the array
-
-    # Gather all responses from the professor
-    prof_answers = await asyncio.gather(*prof_coroutines)
-    for index in range(len(question_answer_array)):
-        question_answer_array[index][1] = prof_answers[index].result  # Update answers in the Q&A array
-
-    # Create a JSON object for the lecture
-    qa_map_output = []
-    for question, answer, associated_students_list in question_answer_array:
-        q_a_pair = {
-            "question": question,
-            "answer": answer,
-            "associated_students_list": associated_students_list
-        }
-        qa_map_output.append(q_a_pair)  # Append Q&A pairs to the output map
-
-    lecture_Json = {
-        "lecture": lecture_content.result,
-        "QnA": qa_map_output
-    }
-    return lecture_Json  # Return the lecture JSON object
-
-# Define the main function to simulate a classroom
-async def simulate_classroom(content=load("sample.txt")):
-    start_time = time.time()  # Record the start time of the simulation
-
-    # Create instances of Professor and Student Agents
-    professor = ProfessorAgent()  # Instantiate a ProfessorAgent
-    students = [StudentAgent(0.5, "25%", "really smart liberal arts students studying anthropology"),
-                StudentAgent(0.2, "40%", "art history"),
-                StudentAgent(0.3, "50%", "political science"),
-                StudentAgent(0.8, "80%", "engineering"),
-                StudentAgent(0.8, "99%", "research in statistics")]  # Instantiate a list of StudentAgents with varied profiles
-
-    splitOnSignLectures = "----------"  # Define a delimiter for splitting lecture content
-    lectures = content.split(splitOnSignLectures)  # Split the content into individual lectures
-    lecture_json_list = []  # Initialize a list to store lecture JSON objects
-
-    qna_json_list = []  # Initialize a list to store Q&A JSON objects
-    for lectureIndex, lecture in enumerate(lectures):
-        lecture_json = await simulate_lecture(lecture, lectureIndex, professor, students)  # Simulate each lecture
-        lecture_json_list.append(lecture_json)  # Append the lecture JSON object to the list
-        for q_a_pair in lecture_json["QnA"]:
-            qna_json_list.append(q_a_pair)  # Append each Q&A pair to the list
-
-    general_agent = GeneralAgent()  # Instantiate a GeneralAgent
-    summary = await general_agent.generate_summary(qna_json_list)  # Generate a summary of Q&A
-
-    # Construct the final JSON object with lecture content and summary
+    discussion_notes = []  # Initialize an array to store discussion notes
+    for agent in agents:
+        response = await agent.discuss(str(discussion_notes))
+        discussion_notes.append({"agent": str(agent), "response": response.result})
     
-    student_list = []
-    
-    for student in students:
-        myString = f"""Background {student.educational_background} ; Retention Rate: {student.retention_rate}"""
-        newString = await general_agent.get_personality(myString)
-        student_list.append(newString.result)
-        
-    result_json = {
-        "lectures": lecture_json_list,
-        "summary": summary.result, # Include the summary in the result
-        "students": student_list
-    }
-    print(result_json)  # Print the result JSON
+    # General Agent provides a summary
+    summary = await general_agent.generate_summary(discussion_notes)
+    discussion_notes.append({"agent": "General Summarizer", "comment": "Summary of the discussion so far is:", "response": summary.result})
 
-    end_time = time.time()  # Record the end time of the simulation
+    return discussion_notes  # Return the discussion notes
 
-    # Calculate and print the elapsed time of the simulation
+# Coroutine to simulate a classroom-style discussion environment
+async def simulate_room():
+    start_time = time.time()  # Record the start time
+
+    # Instantiate Agents
+    agents = [AdminDiscussionAgent("Office of Financial Planning and Operating Budget"),
+              StudentDiscussionAgent("Middle-Class", "Liberal", "English and Political Science"),
+              StudentDiscussionAgent("High-Income", "Conservative", "Economics, Math, CS, and Statistics"),
+              StudentDiscussionAgent("Low-Income", "Conservative", "Environmental Studies and Law"),
+              ProfessorDiscussionAgent("CS an Math", "Tenured"),
+              ProfessorDiscussionAgent("LJST", "Lecturer"),
+              EnvironmentalistDiscussionAgent()]
+
+    general_agent = GeneralAgent()
+
+    # Simulate the roundtable discussion
+    roundtable_discussion_notes = await simulate_roundtable_discussion(agents, general_agent)
+
+    end_time = time.time()  # Record the end time
     elapsed_time = end_time - start_time
     print(f"Elapsed time: {elapsed_time} seconds")
-    
-    return result_json  # Return the result JSON
+
+    return roundtable_discussion_notes  # Return the discussion notes
+
 
 # Execute the main function if this script is run as the main module
 if __name__ == "__main__":
     import asyncio  # Import asyncio for asynchronous execution
-    asyncio.run(simulate_classroom())  # Run the simulate_classroom coroutine
+    asyncio.run(simulate_room())  # Run the simulate_classroom coroutine
