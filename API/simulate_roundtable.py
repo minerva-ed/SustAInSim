@@ -177,8 +177,16 @@ async def simulate_room():
 
     return roundtable_discussion_notes  # Return the discussion notes
 
+async def polling(wes_input, roundtable_discussion_notes):
+    decision = wes_input
+    sentiment = TextBlob(roundtable_discussion_notes).sentiment
+    return {'polarity': sentiment.polarity,
+            'subjectivity': sentiment.subjectivity}
 
 # Execute the main function if this script is run as the main module
 if __name__ == "__main__":
     import asyncio  # Import asyncio for asynchronous execution
-    asyncio.run(simulate_room())  # Run the simulate_classroom coroutine
+    disc_notes = asyncio.run(simulate_room())  # Run the simulate_classroom coroutine
+    wes_input = "I decide to replace the plastic cups in Val in 3 months of time."
+    sentiment = polling(wes_input, disc_notes)
+    print(sentiment)
