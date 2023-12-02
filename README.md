@@ -1,5 +1,5 @@
-# SustAInSim: Diverse Stakeholder Representation through AI
-![demo](demo.png)
+# GAIA: Diverse Stakeholder Representation through AI
+![logo](logo.png)
 
 SustAInSim is a pioneering platform designed to revolutionize discussions around campus sustainability projects. By leveraging sophisticated AI agents, it represents a broad spectrum of stakeholders, including students from various backgrounds, professors, administrators, and environmental entities. This tool aims to cultivate a more inclusive, informed, and sustainability-focused dialogue across campus.
 
