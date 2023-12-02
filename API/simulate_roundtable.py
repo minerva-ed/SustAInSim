@@ -53,6 +53,7 @@ class AdminDiscussionAgent:
         self.kernel = sk.Kernel()  # Initialize a semantic kernel
         self.kernel.add_chat_service("chat-gpt", OpenAIChatCompletion("gpt-3.5-turbo", api_key, org_id))  # Add OpenAI chat service to the kernel
         self.department = department
+        self.id = f"Admin of {self.department}"
         
     # Method to upload notes
     def upload_notes(self, notes):
@@ -61,7 +62,7 @@ class AdminDiscussionAgent:
     # Async method to answer a question
     async def discuss(self, comment):
         # Create and execute a semantic function to provide an answer
-        return self.kernel.create_semantic_function(f"""You are the Director of {self.department} Provide your opinion or take to the following comment received following the summary of {self.notes}: {comment}? Answer concisely.""", temperature=0.8)()
+        return self.kernel.create_semantic_function(f"""You are the Director of {self.department} Provide your opinion or take on the discussion so far summarized in the following {comment}? Answer in 100 words,draw on your background, only give your opinion.""", temperature=0.8)()
 
 # Define a class to represent an Admin Agent that is part of the discussion
 class ProfessorDiscussionAgent:
@@ -71,6 +72,7 @@ class ProfessorDiscussionAgent:
         self.kernel.add_chat_service("chat-gpt", OpenAIChatCompletion("gpt-3.5-turbo", api_key, org_id))  # Add OpenAI chat service to the kernel
         self.department = department
         self.track = track
+        self.id = f"Professor of {self.department} at the level {self.track}"
         
     # Method to upload notes
     def upload_notes(self, notes):
@@ -79,7 +81,7 @@ class ProfessorDiscussionAgent:
     # Async method to answer a question
     async def discuss(self, comment):
         # Create and execute a semantic function to provide an answer
-        return self.kernel.create_semantic_function(f"""You are the professor of {self.department} on track of {self.track}. Provide your opinion or take to the following comment received following the summary of {self.notes}: {comment}? Answer concisely.""", temperature=0.8)()
+        return self.kernel.create_semantic_function(f"""You are the professor of {self.department} on track of {self.track}. Provide your opinion or take on the discussion so far summarized in the following {comment}? Answer in 100 words,draw on your background, only give your opinion.""", temperature=0.8)()
 
 # Define a class to represent an Admin Agent that is part of the discussion
 class EnvironmentalistDiscussionAgent:
@@ -87,6 +89,7 @@ class EnvironmentalistDiscussionAgent:
         self.notes = None  # Initialize notes attribute to None
         self.kernel = sk.Kernel()  # Initialize a semantic kernel
         self.kernel.add_chat_service("chat-gpt", OpenAIChatCompletion("gpt-3.5-turbo", api_key, org_id))  # Add OpenAI chat service to the kernel
+        self.id = f"Environmentalist with legal background"
         
     # Method to upload notes
     def upload_notes(self, notes):
@@ -95,17 +98,18 @@ class EnvironmentalistDiscussionAgent:
     # Async method to answer a question
     async def discuss(self, comment):
         # Create and execute a semantic function to provide an answer
-        return self.kernel.create_semantic_function(f"""You are an Environmentalist with legal background, and nature's best interests are your best interests. Represent Mountains, lakes, and forests nearby as appropriate to the ongoing discussion. Provide your opinion or take to the following comment received following the summary of {self.notes}: {comment}? Answer concisely.""", temperature=0.8)()
+        return self.kernel.create_semantic_function(f"""You are an Environmentalist with legal background, and nature's best interests are your best interests. Represent Mountains, lakes, and forests nearby as appropriate to the ongoing discussion. Provide your opinion or take on the discussion so far summarized in the following {comment}? Answer in 100 words,draw on your background,only give your opinion.""", temperature=0.8)()
 
 # Define a class to represent a Student Agent
 class StudentDiscussionAgent:
-    def __init__(self, socioeconomic_background, politicial_background, educational_background):
+    def __init__(self, socioeconomic_background, political_background, educational_background):
         self.socioeconomic_background = socioeconomic_background
-        self.politicial_background = politicial_background
+        self.political_background = political_background
         self.educational_background = educational_background  # Set the educational background (e.g., Liberal Arts, Engineering, Pure Researcher)
         self.notes = None
         self.kernel = sk.Kernel()  # Initialize a semantic kernel
         self.kernel.add_chat_service("chat-gpt", OpenAIChatCompletion("gpt-3.5-turbo", api_key, org_id))  # Add OpenAI chat service to the kernel
+        self.id = f"Student from a {self.socioeconomic_background} household, with {self.political_background} views and a {self.educational_background} major"
 
     # Method to upload notes
     def upload_notes(self, notes):
@@ -114,7 +118,7 @@ class StudentDiscussionAgent:
     # Async method to generate questions from a lecture content
     async def discuss(self, comment):
         # Create and execute a semantic function to generate questions
-        return self.kernel.create_semantic_function(f"""As a student, you went through the following {self.notes}: Pretend that you are a student with educational background of {self.educational_background}, political background of {self.political_background}, and socio-economic background of {self.socioeconomic_background}. Pretend to be the student described above learning from this discussion, and someone just made this comment {comment}. State one succinct comment/opinion/question you have about this lecture and explain to the audience where your confusion originated from, and make sure it is concise though. If you do not want to say anything respond by saying -1""", max_tokens=200, temperature=0.5)()
+        return self.kernel.create_semantic_function(f"""Pretend that you are a student with educational background of {self.educational_background}, political background of {self.political_background}, and socio-economic background of {self.socioeconomic_background}. Provide your opinion on the discussion summarized here {comment}. State one succinct comment/opinion/question you have about this lecture and explain to the audience where your confusion originated from. Answer in 100 words,draw on your background,only give your opinion.""", max_tokens=200, temperature=0.5)()
 
 # Define a class to represent a General Agent
 class GeneralAgent:
@@ -135,8 +139,12 @@ async def simulate_roundtable_discussion(agents, general_agent):
 
     discussion_notes = []  # Initialize an array to store discussion notes
     for agent in agents:
+        if(discussion_notes==[]):
+            discussion_notes=[content]
         response = await agent.discuss(str(discussion_notes))
-        discussion_notes.append({"agent": str(agent), "response": response.result})
+        discussion_notes=[]
+        print(response.result)
+        discussion_notes.append({"agent": agent.id, "response": response.result})
     
     # General Agent provides a summary
     summary = await general_agent.generate_summary(discussion_notes)
@@ -165,6 +173,7 @@ async def simulate_room():
     end_time = time.time()  # Record the end time
     elapsed_time = end_time - start_time
     print(f"Elapsed time: {elapsed_time} seconds")
+    print(roundtable_discussion_notes)
 
     return roundtable_discussion_notes  # Return the discussion notes
 
