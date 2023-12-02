@@ -25,11 +25,14 @@ def load(file_paths):
         temp_data = f"{file_path} has the following data"
         if file_path.endswith('.pdf'):
             with pdfplumber.open(file_path) as pdf:
-                data.append(temp_data + '\n'.join([page.extract_text() for page in pdf.pages]))
+                data = data +temp_data + '\n'.join([page.extract_text() for page in pdf.pages])
         elif file_path.endswith('.xls') or file_path.endswith('.xlsx'):
             workbook = xlrd.open_workbook(file_path)
             sheet = workbook.sheet_by_index(0)
-            data.append(temp_data + '\n'.join([' '.join(map(str, sheet.row_values(row))) for row in range(sheet.nrows)]))
+            data = data + temp_data + '\n'.join([' '.join(map(str, sheet.row_values(row))) for row in range(sheet.nrows)])
+        elif file_path.endswith('.txt'):
+            with open(file_path, 'r', encoding='utf8') as txt_file:
+                data += temp_data + '\n'+ txt_file.readlines()
         else:
             data.append(temp_data + "This Data Cannot be parsed")
     return data
@@ -102,7 +105,7 @@ class StudentDiscussionAgent:
         self.educational_background = educational_background  # Set the educational background (e.g., Liberal Arts, Engineering, Pure Researcher)
         self.notes = None
         self.kernel = sk.Kernel()  # Initialize a semantic kernel
-        self.kernel.add_chat_service("chat-gpt", OpenAIChatCompletion("gpt-4-1106-preview", api_key, org_id))  # Add OpenAI chat service to the kernel
+        self.kernel.add_chat_service("chat-gpt", OpenAIChatCompletion("gpt-3.5-turbo", api_key, org_id))  # Add OpenAI chat service to the kernel
 
     # Method to upload notes
     def upload_notes(self, notes):
@@ -126,7 +129,7 @@ class GeneralAgent:
 
 # Coroutine to simulate a roundtable discussion session
 async def simulate_roundtable_discussion(agents, general_agent):
-    content = load(["./sample.pdf","./sample.xls"])
+    content = load(["./project_summary.pdf"])
     for agent in agents:
         agent.upload_notes(f"""Here are some key resources for the discussion at hand: {content}""")  # Upload content
 
